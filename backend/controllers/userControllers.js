@@ -7,6 +7,10 @@ const registerUser = async (req, res) => {
   const { name, email, password, uniqueId, role, class: userClass } = req.body;
 
   try {
+    if (!name || !email || !password || !uniqueId || !role) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
     if (!["student", "teacher", "admin"].includes(role)) {
       return res.status(400).json({ message: "Invalid role" });
     }
@@ -18,7 +22,6 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ message: "Email or ID already exists" });
     }
 
-    // Optional validation on ID format
     if (role === "student" && !uniqueId.startsWith("STU")) {
       return res.status(400).json({ message: "Student ID must start with STU" });
     }
@@ -47,7 +50,7 @@ const registerUser = async (req, res) => {
       token: generateToken(user._id),
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Server error during registration" });
   }
 };
 
@@ -56,6 +59,10 @@ const authUser = async (req, res) => {
   const { uniqueId, password } = req.body;
 
   try {
+    if (!uniqueId || !password) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
     const user = await User.findOne({ uniqueId }).populate("class");
 
     if (!user || !(await user.matchPassword(password))) {
@@ -72,11 +79,11 @@ const authUser = async (req, res) => {
       token: generateToken(user._id),
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Server error during login" });
   }
 };
 
-// Profile
+// Get profile
 const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).populate("class");
@@ -94,7 +101,7 @@ const getUserProfile = async (req, res) => {
       class: user.class,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Server error fetching profile" });
   }
 };
 
@@ -103,6 +110,8 @@ const sendVerificationCode = async (req, res) => {
   const { email } = req.body;
 
   try {
+    if (!email) return res.status(400).json({ message: "Email is required" });
+
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -119,7 +128,7 @@ const sendVerificationCode = async (req, res) => {
 
     res.json({ message: "Verification code sent to email" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Error sending verification code" });
   }
 };
 
@@ -128,14 +137,18 @@ const resetPassword = async (req, res) => {
   const { email, code, newPassword } = req.body;
 
   try {
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
     const user = await User.findOne({ email });
 
-    if (
-      !user ||
-      user.resetCode !== code ||
-      user.resetCodeExpiry < Date.now()
-    ) {
-      return res.status(400).json({ message: "Invalid or expired code" });
+    if (!user || user.resetCode !== code) {
+      return res.status(400).json({ message: "Invalid verification code" });
+    }
+
+    if (user.resetCodeExpiry < Date.now()) {
+      return res.status(400).json({ message: "Verification code has expired" });
     }
 
     user.password = newPassword;
@@ -145,7 +158,7 @@ const resetPassword = async (req, res) => {
 
     res.json({ message: "Password updated successfully" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Error resetting password" });
   }
 };
 

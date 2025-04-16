@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "framer-motion": "^12.7.3",
+    "handlebars": "^4.7.8",
+    "lucide-react": "^0.488.0"
+  }
+}
