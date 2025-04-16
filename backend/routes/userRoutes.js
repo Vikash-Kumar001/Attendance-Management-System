@@ -10,10 +10,16 @@ import { protect, adminOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// router.post("/register", protect, adminOnly, registerUser);
-router.post("/register", registerUser);
+// Admin-only registration route
+router.post("/register", protect, adminOnly, registerUser);
+
+// Login route (public)
 router.post("/login", authUser);
+
+// Protected route to fetch logged-in user profile
 router.get("/profile", protect, getUserProfile);
+
+// Public routes for password reset flow
 router.post("/send-code", sendVerificationCode);
 router.post("/reset-password", resetPassword);
 
