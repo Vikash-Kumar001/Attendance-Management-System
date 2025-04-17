@@ -9,6 +9,7 @@ const RegisterPage = () => {
     uniqueId: '',
     role: '',
     class: '',
+    department: '',
   });
   const [error, setError] = useState('');
 
@@ -62,7 +63,7 @@ const RegisterPage = () => {
         />
         <select name="role" value={formData.role} onChange={handleChange}>
           <option value="student">Student</option>
-          <option value="teacher">Teacher</option>
+          <option value="faculty">Faculty</option>
           <option value="admin">Admin</option>
         </select>
         <input
