@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
+import { Pencil, Trash2 } from "lucide-react";
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -11,38 +12,53 @@ const AdminDashboard = () => {
     uniqueId: "",
     role: "student",
     class: "",
+    department: ""
   });
 
+  const [showDepartment, setShowDepartment] = useState(false);
   const [classes, setClasses] = useState([]);
   const [users, setUsers] = useState([]);
   const [feedback, setFeedback] = useState({ message: "", type: "" });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [editingUserId, setEditingUserId] = useState(null);
 
   const token = localStorage.getItem("token");
   const config = {
     headers: { Authorization: `Bearer ${token}` },
   };
 
+  const departments = [
+    "Computer Science",
+    "Information Technology",
+    "Electronics",
+    "Mechanical",
+    "Civil",
+  ];
+
+  const techClasses = [
+    "B.Tech - Semester 1",
+    "B.Tech - Semester 2",
+    "B.Tech - Semester 3",
+    "B.Tech - Semester 4",
+    "B.Tech - Semester 5",
+    "B.Tech - Semester 6",
+    "B.Tech - Semester 7",
+    "B.Tech - Semester 8",
+    "BCA - Semester 1",
+    "BCA - Semester 2",
+    "BCA - Semester 3",
+    "BCA - Semester 4",
+    "BCA - Semester 5",
+    "BCA - Semester 6",
+  ];
+
   useEffect(() => {
-    fetchData();
+    fetchUsers();
   }, []);
-
-  const fetchData = async () => {
-    await Promise.all([fetchClasses(), fetchUsers()]);
-  };
-
-  const fetchClasses = async () => {
-    try {
-      const res = await axios.get(`${import.meta.env.VITE_API_BASE}/classes`, config);
-      setClasses(res.data);
-    } catch (err) {
-      console.error("❌ Failed to fetch classes", err);
-      setFeedback({ message: "Failed to load class data", type: "error" });
-    }
-  };
 
   const fetchUsers = async () => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_BASE}/users/all`, config);
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE}/users`, config);
       setUsers(res.data);
     } catch (err) {
       console.error("❌ Failed to fetch users", err);
@@ -51,7 +67,12 @@ const AdminDashboard = () => {
   };
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+
+    if (name === "role") {
+      setShowDepartment(value === "teacher");
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -59,7 +80,14 @@ const AdminDashboard = () => {
     setFeedback({ message: "", type: "" });
 
     try {
-      await axios.post(`${import.meta.env.VITE_API_BASE}/users/register`, form, config);
+      if (editingUserId) {
+        await axios.put(`${import.meta.env.VITE_API_BASE}/users/${editingUserId}`, form, config);
+        setFeedback({ message: "✅ User updated successfully", type: "success" });
+        setEditingUserId(null);
+      } else {
+        await axios.post(`${import.meta.env.VITE_API_BASE}/users`, form, config);
+        setFeedback({ message: "✅ User registered successfully", type: "success" });
+      }
 
       setForm({
         name: "",
@@ -68,18 +96,50 @@ const AdminDashboard = () => {
         uniqueId: "",
         role: "student",
         class: "",
+        department: ""
       });
 
-      await fetchUsers();
-
-      setFeedback({ message: "✅ User registered successfully", type: "success" });
+      fetchUsers();
     } catch (err) {
       setFeedback({
-        message: err.response?.data?.message || "Registration failed",
+        message: err.response?.data?.message || "Operation failed",
         type: "error",
       });
     }
   };
+
+  const handleEdit = (user) => {
+    setForm({
+      name: user.name,
+      email: user.email,
+      password: "",
+      uniqueId: user.uniqueId,
+      role: user.role,
+      class: user.class?._id || "",
+      department: user.department || "",
+    });
+    setShowDepartment(user.role === "teacher");
+    setEditingUserId(user._id);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Are you sure you want to delete this user?")) return;
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_BASE}/users/${id}`, config);
+      fetchUsers();
+    } catch (err) {
+      console.error("Delete failed", err);
+    }
+  };
+
+  const filteredUsers = users.filter((u) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      u.name.toLowerCase().includes(term) ||
+      u.email.toLowerCase().includes(term) ||
+      u.uniqueId.toLowerCase().includes(term)
+    );
+  });
 
   if (user?.role !== "admin") {
     return <p className="text-center mt-10 text-red-500">🚫 Access denied</p>;
@@ -120,7 +180,7 @@ const AdminDashboard = () => {
           value={form.password}
           onChange={handleChange}
           className="border px-3 py-2 rounded"
-          required
+          required={!editingUserId}
         />
 
         <input
@@ -150,18 +210,30 @@ const AdminDashboard = () => {
           className="border px-3 py-2 rounded"
         >
           <option value="">Select Class</option>
-          {classes.map((cls) => (
-            <option key={cls._id} value={cls._id}>
-              {cls.name}
-            </option>
+          {techClasses.map((cls) => (
+            <option key={cls} value={cls}>{cls}</option>
           ))}
         </select>
+
+        {showDepartment && (
+          <select
+            name="department"
+            value={form.department}
+            onChange={handleChange}
+            className="border px-3 py-2 rounded md:col-span-2"
+          >
+            <option value="">Select Department</option>
+            {departments.map((dep) => (
+              <option key={dep} value={dep}>{dep}</option>
+            ))}
+          </select>
+        )}
 
         <button
           type="submit"
           className="col-span-1 md:col-span-2 bg-blue-600 text-white font-semibold py-2 rounded hover:bg-blue-700 transition duration-200"
         >
-          Register User
+          {editingUserId ? "Update User" : "Register User"}
         </button>
 
         {feedback.message && (
@@ -175,6 +247,16 @@ const AdminDashboard = () => {
         )}
       </form>
 
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search users..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full border px-3 py-2 rounded"
+        />
+      </div>
+
       <h3 className="text-xl font-semibold mb-3">📋 Registered Users</h3>
       <div className="overflow-x-auto bg-white rounded-lg shadow">
         <table className="min-w-full text-sm">
@@ -185,22 +267,33 @@ const AdminDashboard = () => {
               <th className="py-2 px-4">ID</th>
               <th className="py-2 px-4">Role</th>
               <th className="py-2 px-4">Class</th>
+              <th className="py-2 px-4">Department</th>
+              <th className="py-2 px-4">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {users.length > 0 ? (
-              users.map((u) => (
+            {filteredUsers.length > 0 ? (
+              filteredUsers.map((u) => (
                 <tr key={u._id} className="border-t">
                   <td className="py-2 px-4">{u.name}</td>
                   <td className="py-2 px-4">{u.email}</td>
                   <td className="py-2 px-4">{u.uniqueId}</td>
                   <td className="py-2 px-4 capitalize">{u.role}</td>
-                  <td className="py-2 px-4">{u.class?.name || "N/A"}</td>
+                  <td className="py-2 px-4">{u.class?.name || u.class || "N/A"}</td>
+                  <td className="py-2 px-4">{u.department || "-"}</td>
+                  <td className="py-2 px-4 space-x-2">
+                    <button onClick={() => handleEdit(u)} className="text-blue-600">
+                      <Pencil className="inline h-4 w-4" />
+                    </button>
+                    <button onClick={() => handleDelete(u._id)} className="text-red-600">
+                      <Trash2 className="inline h-4 w-4" />
+                    </button>
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="5" className="py-4 text-center text-gray-500">
+                <td colSpan="7" className="py-4 text-center text-gray-500">
                   No users found.
                 </td>
               </tr>
